@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Topic Tracker & Collaborative Board</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Smooth transitions */
+    .transition-all-300 {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    /* Custom scrollbar for webkit */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 min-h-screen font-sans transition-all-300">
+
+  <!-- Main Navigation Bar -->
+  <nav class="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16 items-center">
+        <!-- Logo/Title -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+            <i class="fa-solid fa-comments text-lg"></i>
+          </div>
+          <div>
+            <span class="text-xl font-bold tracking-tight bg-gradient-to-r from-brand-600 to-indigo-600 dark:from-brand-500 dark:to-indigo-400 bg-clip-text text-transparent">TopicHub</span>
+            <span class="hidden sm:inline-block text-xs text-slate-500 dark:text-slate-400 block -mt-1 font-medium">Idea & Discussion Tracker</span>
+          </div>
+        </div>
+
+        <!-- Right Side Actions -->
+        <div class="flex items-center space-x-2 sm:space-x-3">
+          <!-- Dark Mode Toggle -->
+          <button id="themeToggleBtn" onclick="toggleTheme()" class="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-all-300">
+            <i id="themeIcon" class="fa-solid fa-moon text-lg"></i>
+          </button>
+
+          <!-- Publish / Export Board Button -->
+          <button onclick="openPublishModal()" class="flex items-center space-x-2 border border-brand-500/30 hover:border-brand-500 bg-brand-50/50 dark:bg-brand-950/20 hover:bg-brand-50 dark:hover:bg-brand-950/40 text-brand-600 dark:text-brand-400 px-3.5 py-2.5 rounded-xl transition-all-300 font-medium text-sm">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span class="hidden md:inline">Save & Publish</span>
+          </button>
+          
+          <!-- CTA Button -->
+          <button onclick="openTopicModal()" class="flex items-center space-x-2 bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white px-4 py-2.5 rounded-xl shadow-lg shadow-brand-500/20 transition-all-300 transform active:scale-95 font-medium text-sm">
+            <i class="fa-solid fa-plus text-xs"></i>
+            <span>Add Topic</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Notification Toast Container -->
+  <div id="toast" class="fixed top-20 right-4 z-50 transform translate-y-10 opacity-0 pointer-events-none transition-all duration-300 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-xl flex items-center space-x-3 font-medium text-sm">
+    <i class="fa-solid fa-circle-check"></i>
+    <span id="toastMsg">Changes saved!</span>
+  </div>
+
+  <!-- Main Content Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <!-- Top Stats / Overview Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <!-- Card: Total Topics -->
+      <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-sm flex items-center space-x-4">
+        <div class="p-3 bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 rounded-xl">
+          <i class="fa-solid fa-folder-tree text-xl"></i>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Total Topics</p>
+          <h3 id="statTotal" class="text-2xl font-bold mt-1">0</h3>
+        </div>
+      </div>
+
+      <!-- Card: Design Topics -->
+      <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-sm flex items-center space-x-4">
+        <div class="p-3 bg-pink-50 dark:bg-pink-500/10 text-pink-600 dark:text-pink-400 rounded-xl">
+          <i class="fa-solid fa-palette text-xl"></i>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Design & UI</p>
+          <h3 id="statDesign" class="text-2xl font-bold mt-1">0</h3>
+        </div>
+      </div>
+
+      <!-- Card: Engineering Topics -->
+      <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-sm flex items-center space-x-4">
+        <div class="p-3 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl">
+          <i class="fa-solid fa-laptop-code text-xl"></i>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Tech & Dev</p>
+          <h3 id="statTech" class="text-2xl font-bold mt-1">0</h3>
+        </div>
+      </div>
+
+      <!-- Card: Growth/Marketing Topics -->
+      <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-sm flex items-center space-x-4">
+        <div class="p-3 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
+          <i class="fa-solid fa-chart-line text-xl"></i>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Growth & Biz</p>
+          <h3 id="statGrowth" class="text-2xl font-bold mt-1">0</h3>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toolbar: Search, Filters & Sorters -->
+    <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+      <!-- Search Input -->
+      <div class="relative w-full md:w-80">
+        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+          <i class="fa-solid fa-magnifying-glass text-sm"></i>
+        </span>
+        <input type="text" id="searchInput" oninput="applyFiltersAndSort()" placeholder="Search topics, submitters..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:focus:ring-brand-500 focus:border-transparent text-sm transition-all-300">
+      </div>
+
+      <!-- Filter Controls & Actions -->
+      <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+        <!-- Category Filter -->
+        <div class="flex-1 md:flex-none">
+          <select id="categoryFilter" onchange="applyFiltersAndSort()" class="w-full md:w-auto pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm transition-all-300">
+            <option value="All">All Categories</option>
+            <option value="Design">Design</option>
+            <option value="Engineering">Engineering</option>
+            <option value="Product">Product</option>
+            <option value="Marketing">Marketing</option>
+            <option value="General">General</option>
+          </select>
+        </div>
+
+        <!-- Sort Toggle -->
+        <div class="flex-1 md:flex-none">
+          <select id="sortOrder" onchange="applyFiltersAndSort()" class="w-full md:w-auto pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm transition-all-300">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="alphabetical">Alphabetical (Title)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Topics Grid/List Container -->
+    <div id="topicsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Dynamically filled with JavaScript -->
+    </div>
+
+    <!-- Empty State Template -->
+    <div id="emptyState" class="hidden flex-col items-center justify-center py-16 px-4 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-sm">
+      <div class="w-20 h-20 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center text-slate-400 dark:text-slate-600 mb-4 border border-dashed border-slate-200 dark:border-slate-700">
+        <i class="fa-solid fa-inbox text-3xl"></i>
+      </div>
+      <h3 class="text-lg font-semibold mb-1 text-slate-700 dark:text-slate-300">No Topics Found</h3>
+      <p class="text-sm text-slate-500 dark:text-slate-400 text-center max-w-sm">No topics match your current search/filters or none have been added yet. Add a new topic to get started!</p>
+      <button onclick="openTopicModal()" class="mt-4 px-5 py-2.5 bg-brand-600 text-white rounded-xl shadow-lg shadow-brand-500/20 text-sm hover:bg-brand-700 transition-all-300 font-medium">Add a Topic</button>
+    </div>
+
+  </main>
+
+  <!-- Add / Edit Topic Modal Overlay -->
+  <div id="topicModal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+      <div onclick="closeTopicModal()" class="fixed inset-0 transition-opacity bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm" aria-hidden="true"></div>
+      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+      
+      <div class="inline-block align-bottom bg-white dark:bg-slate-800 rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-100 dark:border-slate-700">
+        <div class="px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
+          <h3 id="modalTitle" class="text-xl font-bold text-slate-900 dark:text-white">Add a New Topic</h3>
+          <button onclick="closeTopicModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all-300 p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+
+        <form id="topicForm" onsubmit="handleFormSubmit(event)" class="px-6 py-6 space-y-5">
+          <input type="hidden" id="editTopicId">
+          
+          <!-- Topic Title -->
+          <div>
+            <label for="topicTitle" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Topic Title</label>
+            <input type="text" id="topicTitle" required placeholder="What is the core idea or subject?" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:focus:ring-brand-500 focus:border-transparent text-sm transition-all-300">
+          </div>
+
+          <!-- Category Selector -->
+          <div>
+            <label for="topicCategory" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Category</label>
+            <select id="topicCategory" required class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm transition-all-300">
+              <option value="" disabled selected>Select Category</option>
+              <option value="Design">Design</option>
+              <option value="Engineering">Engineering</option>
+              <option value="Product">Product</option>
+              <option value="Marketing">Marketing</option>
+              <option value="General">General</option>
+            </select>
+          </div>
+
+          <!-- Submitter Name -->
+          <div>
+            <label for="topicSubmitter" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Submitter Name</label>
+            <input type="text" id="topicSubmitter" required placeholder="Who is submitting this topic?" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:focus:ring-brand-500 focus:border-transparent text-sm transition-all-300">
+          </div>
+
+          <!-- Detailed Description -->
+          <div>
+            <label for="topicDescription" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Description / Details</label>
+            <textarea id="topicDescription" required rows="4" placeholder="Add more context, references, or specific questions..." class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:focus:ring-brand-500 focus:border-transparent text-sm transition-all-300"></textarea>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100 dark:border-slate-700/60">
+            <button type="button" onclick="closeTopicModal()" class="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-medium transition-all-300">
+              Cancel
+            </button>
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-medium text-sm shadow-lg shadow-brand-500/10 transition-all-300">
+              Submit Topic
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Confirmation Dialog -->
+  <div id="confirmDialog" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+      <div onclick="closeConfirmDialog()" class="fixed inset-0 transition-opacity bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm" aria-hidden="true"></div>
+      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+      
+      <div class="inline-block align-bottom bg-white dark:bg-slate-800 rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-slate-100 dark:border-slate-700">
+        <div class="p-6">
+          <div class="flex items-center space-x-4 mb-4">
+            <div class="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center flex-shrink-0">
+              <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-slate-900 dark:text-white">Delete Topic?</h3>
+              <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">This action cannot be undone. This topic will be permanently removed.</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-end space-x-3 mt-6">
+            <button onclick="closeConfirmDialog()" class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-medium transition-all-300">
+              Cancel
+            </button>
+            <button id="confirmDeleteBtn" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-medium text-sm shadow-lg shadow-rose-500/10 transition-all-300">
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share & Publish Modal Overlay -->
+  <div id="publishModal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+      <div onclick="closePublishModal()" class="fixed inset-0 transition-opacity bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm" aria-hidden="true"></div>
+      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+      
+      <div class="inline-block align-bottom bg-white dark:bg-slate-800 rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-slate-100 dark:border-slate-700">
+        <div class="px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
+          <h3 class="text-xl font-bold text-slate-900 dark:text-white">Save & Publish Changes</h3>
+          <button onclick="closePublishModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all-300 p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+
+        <div class="p-6 space-y-6">
+          <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            Since your website runs strictly serverless, any topics you add or edit are stored locally on your device. To make your changes visible to **everyone** on your live GitHub Pages link:
+          </p>
+
+          <div class="space-y-3">
+            <div class="flex items-start space-x-3 text-sm">
+              <div class="flex-shrink-0 w-6 h-6 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold">1</div>
+              <p class="text-slate-600 dark:text-slate-300 pt-0.5">Click <strong class="text-slate-900 dark:text-white">"Download index.html"</strong> below to get the updated file with your new topics embedded.</p>
+            </div>
+            <div class="flex items-start space-x-3 text-sm">
+              <div class="flex-shrink-0 w-6 h-6 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold">2</div>
+              <p class="text-slate-600 dark:text-slate-300 pt-0.5">Drag-and-drop or push this new file directly into your **GitHub Repository** to replace the old <code class="bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-rose-500 font-mono text-xs">index.html</code>.</p>
+            </div>
+            <div class="flex items-start space-x-3 text-sm">
+              <div class="flex-shrink-0 w-6 h-6 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold">3</div>
+              <p class="text-slate-600 dark:text-slate-300 pt-0.5">Once GitHub finishes deploying (usually takes under a minute), your newly added topics will be loaded for every visitor!</p>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex flex-col sm:flex-row items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800 gap-4">
+            <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Want to quickly inspect or copy the source code instead?</span>
+            <button onclick="copySourceCode()" class="w-full sm:w-auto px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center space-x-2 transition-all-300">
+              <i class="fa-regular fa-copy"></i>
+              <span>Copy Raw Source Code</span>
+            </button>
+          </div>
+
+          <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100 dark:border-slate-700/60">
+            <button onclick="closePublishModal()" class="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-medium transition-all-300">
+              Close
+            </button>
+            <button onclick="downloadUpdatedHTML()" class="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-medium text-sm shadow-lg shadow-brand-500/10 transition-all-300">
+              <i class="fa-solid fa-download"></i>
+              <span>Download index.html</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Javascript Logic -->
+  <script>
+    // State Management
+    /*DATA_START*/
+    let topics = [
+      {
+        id: "1",
+        title: "Integrate Advanced Dashboard Analytics",
+        description: "We should build visual user metrics pipelines tracking user churn, acquisition, and dynamic sessions per user directly on the administrator UI panel.",
+        submitter: "Sarah Jenkins",
+        category: "Engineering",
+        date: "2026-06-01T10:30:00.000Z"
+      },
+      {
+        id: "2",
+        title: "Brand Asset Renewal / Logo Overhaul",
+        description: "Let's align with a more minimalist palette, softer shadows, and rounder fonts for standard components. Needs a complete review of our visual guidelines.",
+        submitter: "Alex Carter",
+        category: "Design",
+        date: "2026-06-03T14:15:00.000Z"
+      },
+      {
+        id: "3",
+        title: "Micro-Influencer Launch Strategy",
+        description: "Research 20-30 mid-tier engineering content creators on LinkedIn/YouTube to assist with our beta deployment launch in mid-July.",
+        submitter: "Marcus Vance",
+        category: "Marketing",
+        date: "2026-06-04T09:00:00.000Z"
+      },
+      {
+        id: "4",
+        title: "Roadmap Priority Alignments",
+        description: "Q3 priorities checklist check-in. Gathering operational targets across our design, product, and developmental teams.",
+        submitter: "Evelyn Ross",
+        category: "Product",
+        date: "2026-06-05T08:12:00.000Z"
+      }
+    ];
+    /*DATA_END*/
+
+    let deleteTargetId = null;
+
+    // Load data from LocalStorage if it exists, otherwise use initial topics
+    window.onload = function() {
+      const storedTopics = localStorage.getItem('hub_topics');
+      if (storedTopics) {
+        try {
+          topics = JSON.parse(storedTopics);
+        } catch (e) {
+          console.error("Failed to parse saved data from localStorage.");
+        }
+      }
+      applyTheme();
+      updateDashboard();
+    }
+
+    // Save state helper
+    function saveState() {
+      localStorage.setItem('hub_topics', JSON.stringify(topics));
+    }
+
+    // Toggle Light & Dark Mode
+    function toggleTheme() {
+      const root = document.documentElement;
+      const isDark = root.classList.contains('dark');
+      if (isDark) {
+        root.classList.remove('dark');
+        localStorage.setItem('hub_theme', 'light');
+      } else {
+        root.classList.add('dark');
+        localStorage.setItem('hub_theme', 'dark');
+      }
+      applyTheme();
+    }
+
+    // Apply saved theme preference
+    function applyTheme() {
+      const root = document.documentElement;
+      const icon = document.getElementById('themeIcon');
+      const savedTheme = localStorage.getItem('hub_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      
+      if (savedTheme === 'dark') {
+        root.classList.add('dark');
+        icon.className = 'fa-solid fa-sun text-lg text-amber-400';
+      } else {
+        root.classList.remove('dark');
+        icon.className = 'fa-solid fa-moon text-lg text-slate-500';
+      }
+    }
+
+    // Category Badges & Color styling mapping
+    const categoryColors = {
+      Design: { bg: 'bg-pink-50 dark:bg-pink-500/10', text: 'text-pink-700 dark:text-pink-400', border: 'border-pink-100 dark:border-pink-500/20' },
+      Engineering: { bg: 'bg-blue-50 dark:bg-blue-500/10', text: 'text-blue-700 dark:text-blue-400', border: 'border-blue-100 dark:border-blue-500/20' },
+      Product: { bg: 'bg-purple-50 dark:bg-purple-500/10', text: 'text-purple-700 dark:text-purple-400', border: 'border-purple-100 dark:border-purple-500/20' },
+      Marketing: { bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-100 dark:border-emerald-500/20' },
+      General: { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-700 dark:text-slate-300', border: 'border-slate-200 dark:border-slate-700' }
+    };
+
+    // Main Update Function: Re-calculates and re-renders entire UI
+    function updateDashboard() {
+      saveState();
+      updateStats();
+      applyFiltersAndSort();
+    }
+
+    // Calculates Dashboard Stats Row
+    function updateStats() {
+      const counts = { total: topics.length, Design: 0, Engineering: 0, Growth: 0 };
+      
+      topics.forEach(t => {
+        if (t.category === 'Design') counts.Design++;
+        else if (t.category === 'Engineering') counts.Engineering++;
+        else if (t.category === 'Marketing' || t.category === 'Product') counts.Growth++;
+      });
+
+      document.getElementById('statTotal').innerText = counts.total;
+      document.getElementById('statDesign').innerText = counts.Design;
+      document.getElementById('statTech').innerText = counts.Engineering;
+      document.getElementById('statGrowth').innerText = counts.Growth;
+    }
+
+    // Filter and Sort Processing
+    function applyFiltersAndSort() {
+      const searchVal = document.getElementById('searchInput').value.toLowerCase().trim();
+      const catVal = document.getElementById('categoryFilter').value;
+      const sortVal = document.getElementById('sortOrder').value;
+
+      // Filter
+      let filtered = topics.filter(topic => {
+        const matchesSearch = topic.title.toLowerCase().includes(searchVal) || 
+                              topic.description.toLowerCase().includes(searchVal) || 
+                              topic.submitter.toLowerCase().includes(searchVal);
+        const matchesCategory = (catVal === 'All' || topic.category === catVal);
+        return matchesSearch && matchesCategory;
+      });
+
+      // Sort
+      if (sortVal === 'newest') {
+        filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+      } else if (sortVal === 'oldest') {
+        filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
+      } else if (sortVal === 'alphabetical') {
+        filtered.sort((a, b) => a.title.localeCompare(b.title));
+      }
+
+      renderList(filtered);
+    }
+
+    // Render individual topic cards to the dashboard grid
+    function renderList(list) {
+      const container = document.getElementById('topicsContainer');
+      const emptyState = document.getElementById('emptyState');
+
+      if (list.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        emptyState.classList.add('flex');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      emptyState.classList.remove('flex');
+
+      container.innerHTML = list.map(topic => {
+        const style = categoryColors[topic.category] || categoryColors.General;
+        const submitterInitials = topic.submitter.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+        
+        // Date formatting
+        const formattedDate = new Date(topic.date).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        return `
+          <div class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-800/80 p-6 flex flex-col justify-between shadow-sm hover:shadow-md dark:shadow-none hover:-translate-y-1 transition-all duration-300">
+            <div>
+              <!-- Header tag row -->
+              <div class="flex items-center justify-between mb-4">
+                <span class="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border ${style.bg} ${style.text} ${style.border}">
+                  ${topic.category}
+                </span>
+                
+                <span class="text-xs text-slate-400 dark:text-slate-500 font-medium">
+                  <i class="fa-regular fa-clock mr-1"></i>${formattedDate}
+                </span>
+              </div>
+
+              <!-- Topic Title -->
+              <h4 class="text-lg font-bold text-slate-900 dark:text-white line-clamp-1 mb-2 hover:line-clamp-none transition-all-300" title="${topic.title}">
+                ${topic.title}
+              </h4>
+
+              <!-- Description -->
+              <p class="text-sm text-slate-600 dark:text-slate-300 mb-6 leading-relaxed line-clamp-3 hover:line-clamp-none whitespace-pre-line transition-all-300">
+                ${topic.description}
+              </p>
+            </div>
+
+            <!-- Footer Details & Actions -->
+            <div class="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-700/60 mt-auto">
+              <!-- Submitter info -->
+              <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center font-bold text-xs border border-slate-200 dark:border-slate-600">
+                  ${submitterInitials}
+                </div>
+                <div>
+                  <span class="block text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider">Submitted By</span>
+                  <span class="block text-sm font-semibold text-slate-700 dark:text-slate-200">${topic.submitter}</span>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex items-center space-x-1">
+                <button onclick="openTopicModal('${topic.id}')" title="Edit Topic" class="p-2 text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl transition-all-300">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button onclick="triggerDelete('${topic.id}')" title="Delete Topic" class="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-xl transition-all-300">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Modal Control: Open modal (can specify topic ID if editing)
+    function openTopicModal(id = '') {
+      const modal = document.getElementById('topicModal');
+      const titleEl = document.getElementById('modalTitle');
+      const form = document.getElementById('topicForm');
+
+      form.reset();
+
+      if (id) {
+        // Edit Mode
+        const topic = topics.find(t => t.id === id);
+        if (!topic) return;
+
+        titleEl.innerText = "Edit Topic Details";
+        document.getElementById('editTopicId').value = topic.id;
+        document.getElementById('topicTitle').value = topic.title;
+        document.getElementById('topicCategory').value = topic.category;
+        document.getElementById('topicSubmitter').value = topic.submitter;
+        document.getElementById('topicDescription').value = topic.description;
+      } else {
+        // Create Mode
+        titleEl.innerText = "Add a New Topic";
+        document.getElementById('editTopicId').value = "";
+      }
+
+      modal.classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+    }
+
+    // Close Topic Modal
+    function closeTopicModal() {
+      const modal = document.getElementById('topicModal');
+      modal.classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+    }
+
+    // Create or Update Form handler
+    function handleFormSubmit(event) {
+      event.preventDefault();
+
+      const id = document.getElementById('editTopicId').value;
+      const title = document.getElementById('topicTitle').value.trim();
+      const category = document.getElementById('topicCategory').value;
+      const submitter = document.getElementById('topicSubmitter').value.trim();
+      const description = document.getElementById('topicDescription').value.trim();
+
+      if (id) {
+        // Edit Action
+        const index = topics.findIndex(t => t.id === id);
+        if (index !== -1) {
+          topics[index] = {
+            ...topics[index],
+            title,
+            category,
+            submitter,
+            description
+          };
+        }
+      } else {
+        // Create Action
+        const newTopic = {
+          id: Date.now().toString(),
+          title,
+          category,
+          submitter,
+          description,
+          date: new Date().toISOString()
+        };
+        topics.unshift(newTopic);
+      }
+
+      closeTopicModal();
+      updateDashboard();
+      showToast("Topic saved successfully!");
+    }
+
+    // Custom dialog deletion confirmation
+    function triggerDelete(id) {
+      deleteTargetId = id;
+      const dialog = document.getElementById('confirmDialog');
+      dialog.classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+
+      document.getElementById('confirmDeleteBtn').onclick = function() {
+        if (deleteTargetId) {
+          topics = topics.filter(t => t.id !== deleteTargetId);
+          closeConfirmDialog();
+          updateDashboard();
+          showToast("Topic deleted.");
+        }
+      }
+    }
+
+    function closeConfirmDialog() {
+      const dialog = document.getElementById('confirmDialog');
+      dialog.classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+      deleteTargetId = null;
+    }
+
+    // Publish/Share Modal Functions
+    function openPublishModal() {
+      document.getElementById('publishModal').classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+    }
+
+    function closePublishModal() {
+      document.getElementById('publishModal').classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+    }
+
+    // Helper: Shows custom system toaster messages
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMsg').innerText = msg;
+      toast.classList.remove('opacity-0', 'translate-y-10', 'pointer-events-none');
+      
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-10', 'pointer-events-none');
+      }, 3000);
+    }
+
+    // Dynamic Code Generator Engine
+    async function getUpdatedSource() {
+      let rawHTML = "";
+      
+      // Attempt to load the raw file dynamically
+      try {
+        const response = await fetch(window.location.href);
+        if (response.ok) {
+          rawHTML = await response.text();
+        }
+      } catch (err) {
+        console.warn("Unable to fetch original HTML. Building using document template.", err);
+      }
+
+      // If fetch fails (e.g. locally hosted on file://), fallback to fallback parser
+      if (!rawHTML) {
+        rawHTML = document.documentElement.outerHTML;
+      }
+
+      // Replaces the hardcoded JSON block with current local state
+      const startMarker = "/*DATA_START*/";
+      const endMarker = "/*DATA_END*/";
+      const regex = /([\s\S]*?\/\*DATA_START\*\/)[\s\S]*?(\/\*DATA_END\*\/[\s\S]*)/;
+      
+      const replacementString = `\n    let topics = ${JSON.stringify(topics, null, 2)};\n    `;
+      
+      if (regex.test(rawHTML)) {
+        return rawHTML.replace(regex, `$1${replacementString}$2`);
+      } else {
+        // Fallback reconstruction if source text changed dramatically
+        return `<!DOCTYPE html>\n<html lang="en">\n${document.documentElement.innerHTML}\n</html>`;
+      }
+    }
+
+    // Triggers download of generated code as a static file
+    async function downloadUpdatedHTML() {
+      const fileContent = await getUpdatedSource();
+      const blob = new Blob([fileContent], { type: "text/html;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "index.html";
+      link.click();
+      URL.revokeObjectURL(link.href);
+      showToast("Downloaded index.html successfully!");
+    }
+
+    // Copy Raw code directly to device clipboard
+    async function copySourceCode() {
+      const source = await getUpdatedSource();
+      const textarea = document.createElement('textarea');
+      textarea.value = source;
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast("Copied updated code to clipboard!");
+      } catch (err) {
+        showToast("Could not copy code. Please download instead.");
+      }
+      document.body.removeChild(textarea);
+    }
+  </script>
+</body>
+</html>
