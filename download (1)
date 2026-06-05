@@ -1,0 +1,416 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  Inbox,
+  History,
+  Search,
+  Filter,
+  Check,
+  Send,
+  Plus,
+  Trash2,
+  CalendarCheck,
+  Tag,
+  AlertTriangle
+} from 'lucide-react';
+import { Topic } from '../types';
+
+interface TrackerTabProps {
+  topics: Topic[];
+  onAddInlineTopic: (topic: Omit<Topic, 'id' | 'status' | 'date' | 'reviewDate'>) => void;
+  onPromoteToAgenda: (topic: Topic) => void;
+  onMarkReviewed: (id: string) => void;
+  onDeleteTopic: (id: string) => void;
+}
+
+export default function TrackerTab({
+  topics,
+  onAddInlineTopic,
+  onPromoteToAgenda,
+  onMarkReviewed,
+  onDeleteTopic,
+}: TrackerTabProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<'All' | Topic['category']>('All');
+  const [priorityFilter, setPriorityFilter] = useState<'All' | Topic['priority']>('All');
+
+  // Inline topic state
+  const [inlineTopic, setInlineTopic] = useState('');
+  const [inlineSubmitter, setInlineSubmitter] = useState('');
+  const [inlineCategory, setInlineCategory] = useState<Topic['category']>('Procedures');
+  const [inlinePriority, setInlinePriority] = useState<Topic['priority']>('Medium');
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+
+  const handleQuickAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inlineTopic.trim() || !inlineSubmitter.trim()) return;
+    onAddInlineTopic({
+      topic: inlineTopic.trim(),
+      submitter: inlineSubmitter.trim(),
+      category: inlineCategory,
+      priority: inlinePriority,
+    });
+    setInlineTopic('');
+    setInlineSubmitter('');
+    setShowQuickAdd(false);
+  };
+
+  const getPriorityColor = (priority: Topic['priority']) => {
+    switch (priority) {
+      case 'Critical':
+        return 'bg-red-50 text-red-700 border-red-100';
+      case 'High':
+        return 'bg-amber-50 text-amber-700 border-amber-100';
+      case 'Medium':
+        return 'bg-blue-50 text-blue-700 border-blue-100';
+      default:
+        return 'bg-slate-50 text-slate-600 border-slate-205';
+    }
+  };
+
+  // Filter topics
+  const filteredTopics = topics.filter((t) => {
+    const matchesSearch =
+      t.topic.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.submitter.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (t.description?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter === 'All' || t.category === categoryFilter;
+    const matchesPriority = priorityFilter === 'All' || t.priority === priorityFilter;
+    return matchesSearch && matchesCategory && matchesPriority;
+  });
+
+  const upcomingTopics = filteredTopics.filter((t) => t.status === 'Upcoming');
+  const reviewedTopics = filteredTopics.filter((t) => t.status === 'Reviewed');
+
+  return (
+    <section className="space-y-8 animate-in fade-in duration-300 my-2" id="tracker-tab">
+      
+      {/* Search and Advanced Filter Panel */}
+      <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 flex flex-col lg:flex-row gap-4 items-center justify-between shadow-[0_8px_30px_rgb(0,0,0,0.03)]">
+        
+        {/* Search */}
+        <div className="relative w-full lg:w-80">
+          <input
+            id="tracker-search-input"
+            type="text"
+            placeholder="Search safety topics..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-200/80 rounded-xl pl-10 pr-4 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:border-[#4B286D] focus:ring-2 focus:ring-[#4B286D]/10 focus:bg-white transition-all placeholder:text-slate-400"
+          />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap gap-2.5 items-center w-full lg:w-auto">
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-lg px-3 py-2 text-slate-500 text-xs font-bold font-display">
+            <Filter className="w-3.5 h-3.5 text-slate-400" />
+            <span>FILTER BY:</span>
+          </div>
+
+          <select
+            id="filter-category-select"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value as any)}
+            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-[#4B286D] focus:ring-2 focus:ring-[#4B286D]/10"
+          >
+            <option value="All">All Categories</option>
+            <option value="Weather">Weather Hazards</option>
+            <option value="Equipment">Safety Equipment & PPE</option>
+            <option value="Procedures">Procedures & Safe Work</option>
+            <option value="Environmental">Environmental Issues</option>
+            <option value="Other">Other Category</option>
+          </select>
+
+          <select
+            id="filter-priority-select"
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value as any)}
+            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-[#4B286D] focus:ring-2 focus:ring-[#4B286D]/10"
+          >
+            <option value="All">All Priorities</option>
+            <option value="Low">Low Priority</option>
+            <option value="Medium">Medium Priority</option>
+            <option value="High">High Priority</option>
+            <option value="Critical">Critical Priority</option>
+          </select>
+
+          <button
+            id="toggle-quick-add-btn"
+            onClick={() => setShowQuickAdd(!showQuickAdd)}
+            className="py-2 px-4 rounded-lg bg-[#2B8000] hover:bg-[#1b5000] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ml-auto lg:ml-2.5 transition-all outline-none"
+          >
+            <Plus className="w-4 h-4" />
+            Quick Add
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Add Inline Form */}
+      {showQuickAdd && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          className="bg-white rounded-2xl border border-slate-100 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
+        >
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2 font-display">
+            <Tag className="w-4 h-4 text-[#2B8000]" />
+            Quick Safety Topic Register
+          </h3>
+          <form onSubmit={handleQuickAdd} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div className="md:col-span-2">
+              <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                TOPIC TITLE
+              </label>
+              <input
+                id="inline-topic-title"
+                type="text"
+                required
+                placeholder="Brief safety hazard title"
+                value={inlineTopic}
+                onChange={(e) => setInlineTopic(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:border-[#4B286D] focus:bg-white focus:ring-2 focus:ring-[#4B286D]/10 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                SUBMITTER
+              </label>
+              <input
+                id="inline-submitter"
+                type="text"
+                required
+                placeholder="Partner Name"
+                value={inlineSubmitter}
+                onChange={(e) => setInlineSubmitter(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:border-[#4B286D] focus:bg-white focus:ring-2 focus:ring-[#4B286D]/10 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                CATEGORY
+              </label>
+              <select
+                id="inline-category"
+                value={inlineCategory}
+                onChange={(e) => setInlineCategory(e.target.value as any)}
+                className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-sm font-semibold text-slate-705 outline-none focus:ring-2 focus:ring-[#4B286D]/10"
+              >
+                <option value="Weather">Weather Hazards</option>
+                <option value="Equipment">Safety Equipment & PPE</option>
+                <option value="Procedures">Procedures & Safe Work</option>
+                <option value="Environmental">Environmental</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                PRIORITY
+              </label>
+              <select
+                id="inline-priority"
+                value={inlinePriority}
+                onChange={(e) => setInlinePriority(e.target.value as any)}
+                className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-sm font-semibold text-slate-705 outline-none focus:ring-2 focus:ring-[#4B286D]/10"
+              >
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="Critical">Critical</option>
+              </select>
+            </div>
+            <div className="md:col-span-4 flex justify-end gap-2 pt-3 border-t border-slate-100 mt-2">
+              <button
+                id="inline-cancel-btn"
+                type="button"
+                onClick={() => setShowQuickAdd(false)}
+                className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-100 uppercase transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                id="inline-save-btn"
+                type="submit"
+                className="px-4 py-2 bg-[#2B8000] text-white text-xs font-bold hover:bg-[#206000] rounded-lg uppercase transition-all"
+              >
+                Register Topic
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      )}
+
+      {/* Two-Column Grid: Backlog on Left, Archive on Right */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        {/* Upcoming (Backlog) Section */}
+        <section className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col">
+          <div className="bg-[#2B8000] px-5 py-4.5 flex items-center justify-between">
+            <div className="flex items-center gap-2.5 text-white">
+              <Inbox className="w-5 h-5 text-green-100" />
+              <h3 className="text-sm font-bold uppercase tracking-wider font-display">AWAITING DISCUSSION BACKLOG</h3>
+            </div>
+            <span className="px-3 py-1 rounded-full bg-white/10 text-white text-[10px] font-bold uppercase tracking-wider">
+              {upcomingTopics.length} PENDING
+            </span>
+          </div>
+
+          <div className="p-5 space-y-4 max-h-[500px] overflow-y-auto divide-y divide-slate-100">
+            <AnimatePresence initial={false}>
+              {upcomingTopics.length === 0 ? (
+                <div className="text-center py-12 text-slate-400">
+                  <Check className="w-8 h-8 text-[#2B8000] mx-auto mb-2" />
+                  <p className="font-bold text-sm text-slate-700">All Clean!</p>
+                  <p className="text-xs text-slate-400 mt-1">No pending items found matching search filters.</p>
+                </div>
+              ) : (
+                upcomingTopics.map((topic) => (
+                  <motion.div
+                    key={topic.id}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    className="pt-4 first:pt-0 group flex flex-col justify-between"
+                  >
+                    <div className="pb-3">
+                      <div className="flex justify-between items-start gap-2 mb-2">
+                        <span className="px-2.5 py-0.5 rounded-full bg-slate-50 border border-slate-200/60 text-slate-500 text-[9px] font-bold uppercase tracking-wider">
+                          {topic.category}
+                        </span>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wider ${getPriorityColor(
+                            topic.priority
+                          )}`}
+                        >
+                          {topic.priority} PRIORITY
+                        </span>
+                      </div>
+                      <p className="font-bold text-slate-800 text-sm mb-1 line-clamp-3">
+                        {topic.topic}
+                      </p>
+                      {topic.description && (
+                        <p className="text-slate-500 text-xs font-semibold mb-3 leading-relaxed mt-1">
+                          {topic.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider pt-2.5 border-t border-slate-50">
+                      <span className="normal-case font-medium">Submitted by {topic.submitter}</span>
+                      <div className="flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition-opacity">
+                        <button
+                          id={`promote-agenda-item-${topic.id}`}
+                          onClick={() => onPromoteToAgenda(topic)}
+                          className="bg-[#4B286D] hover:bg-[#3d1e59] text-white p-2 rounded-lg flex items-center justify-center cursor-pointer"
+                          title="Promote to current agenda"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span className="text-[9px] uppercase font-bold tracking-wider px-1 hidden sm:inline">Agenda</span>
+                        </button>
+                        <button
+                          id={`mark-reviewed-${topic.id}`}
+                          onClick={() => onMarkReviewed(topic.id)}
+                          className="bg-[#2B8000] hover:bg-[#1b5000] text-white p-2 rounded-lg flex items-center justify-center cursor-pointer"
+                          title="Finish & Review"
+                        >
+                          <CalendarCheck className="w-3.5 h-3.5" />
+                          <span className="text-[9px] uppercase font-bold tracking-wider px-1 hidden sm:inline">Solve</span>
+                        </button>
+                        <button
+                          id={`delete-topic-${topic.id}`}
+                          onClick={() => onDeleteTopic(topic.id)}
+                          className="text-slate-400 hover:text-red-650 p-2 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-lg transition-all cursor-pointer"
+                          title="Discard suggestion"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </AnimatePresence>
+          </div>
+        </section>
+
+        {/* Completed (Reviewed Archive) Section */}
+        <section className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.03)] flex flex-col">
+          <div className="bg-[#54595F] px-5 py-4.5 flex items-center justify-between">
+            <div className="flex items-center gap-2.5 text-white">
+              <History className="w-5 h-5 text-slate-350" />
+              <h3 className="text-sm font-bold uppercase tracking-wider font-display">RESOLVED & ARCHIVED</h3>
+            </div>
+            <span className="px-3 py-1 rounded-full bg-white/10 text-white text-[10px] font-bold uppercase tracking-wider">
+              {reviewedTopics.length} CLOSED
+            </span>
+          </div>
+
+          <div className="p-5 space-y-4 max-h-[500px] overflow-y-auto divide-y divide-slate-100">
+            <AnimatePresence initial={false}>
+              {reviewedTopics.length === 0 ? (
+                <div className="text-center py-12 text-slate-400">
+                  <History className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p className="font-bold text-sm text-slate-700">Empty Archive</p>
+                  <p className="text-xs text-slate-400 mt-1">No completed topics found or archived under current search.</p>
+                </div>
+              ) : (
+                reviewedTopics.map((topic) => (
+                  <motion.div
+                    key={topic.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 0.8 }}
+                    exit={{ opacity: 0 }}
+                    className="pt-4 first:pt-0 flex flex-col justify-between group hover:opacity-100 transition-all"
+                  >
+                    <div className="pb-2">
+                      <p className="font-semibold text-slate-500 line-through text-sm leading-snug">
+                        {topic.topic}
+                      </p>
+                      {topic.description && (
+                        <p className="text-slate-400 text-xs font-medium mb-3 leading-relaxed mt-1">
+                          {topic.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider pt-2 border-t border-slate-500/10">
+                      <span>Interlocked on {topic.reviewDate || '5/1/2026'}</span>
+                      <button
+                        id={`delete-archived-topic-${topic.id}`}
+                        onClick={() => onDeleteTopic(topic.id)}
+                        className="text-slate-400 hover:text-red-650 p-2 bg-slate-50 hover:bg-slate-100 border border-slate-150 rounded-lg transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                        title="Remove permanently"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </AnimatePresence>
+          </div>
+        </section>
+
+      </div>
+
+      <div className="bg-amber-50 rounded-2xl border border-amber-100 p-5 sm:p-6 flex gap-4 items-start shadow-xs">
+        <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <h4 className="text-xs font-bold text-amber-800 uppercase tracking-widest mb-1.5 font-display">
+            Safety Submission Policy
+          </h4>
+          <p className="text-xs text-amber-900 font-medium leading-relaxed">
+            Registered safety and environmental objects are queued to the Partner Safety Backlog. Items are promoted
+            directly to the active agenda for the next weekly sync session. Once addressed, they move into the Resolved
+            Archive for permanent audit and record keeping.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}

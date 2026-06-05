@@ -1,0 +1,343 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  Calendar,
+  Clipboard,
+  History,
+  Users,
+  AlertTriangle,
+  HelpCircle,
+  FileSpreadsheet
+} from 'lucide-react';
+import { Topic, AgendaItem, MeetingMinutes } from './types';
+import DashboardTab from './components/DashboardTab';
+import TrackerTab from './components/TrackerTab';
+import MinutesTab from './components/MinutesTab';
+import TopicForm from './components/TopicForm';
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState<'hub' | 'topics' | 'minutes'>('hub');
+  const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
+
+  // Core safety data states with local persistence
+  const [agenda, setAgenda] = useState<AgendaItem[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [minutes, setMinutes] = useState<MeetingMinutes[]>([]);
+
+  // Upcoming interlock safety date
+  const [meetingDate, setMeetingDate] = useState('June 10, 2026');
+
+  // Load initial data or mock seeding
+  useEffect(() => {
+    // 1. Initial Agenda Load
+    const storedAgenda = localStorage.getItem('telus_agenda');
+    if (storedAgenda) {
+      setAgenda(JSON.parse(storedAgenda));
+    } else {
+      const defaultAgenda: AgendaItem[] = [
+        { id: 'a1', item: "Introductions & Site Welcome", submitter: "Shane", notes: "Quick welcome, safety partner check-in, and introductions." },
+        { id: 'a2', item: "Interlock Call Objectives", submitter: "Shane", notes: "Establish quarterly safety thresholds, partner feedback rules, and portal guidelines." },
+        { id: 'a3', item: "Partner Safety Interlock Hub", submitter: "Shane", notes: "Demonstration of the new interactive suggestion box and resolved archives." },
+        { id: 'a4', item: "High-Priority Discussions", submitter: "Shane", notes: "Promoting and aligning on top backlog topics including weather alerts." }
+      ];
+      setAgenda(defaultAgenda);
+      localStorage.setItem('telus_agenda', JSON.stringify(defaultAgenda));
+    }
+
+    // 2. Initial Topics Register Load
+    const storedTopics = localStorage.getItem('telus_topics');
+    if (storedTopics) {
+      setTopics(JSON.parse(storedTopics));
+    } else {
+      const defaultTopics: Topic[] = [
+        { id: 't1', topic: "Extreme temperatures during summer roof deployments", submitter: "Shane Moews", category: "Weather", priority: "Critical", status: "Upcoming", date: "5/8/25" },
+        { id: 't2', topic: "High winds guidelines for bucket trucks", submitter: "Shane Moews", category: "Weather", priority: "High", status: "Upcoming", date: "5/8/25" },
+        { id: 't3', topic: "Ladders - Type 1AA and Safe Work Policies", submitter: "Shane Moews", category: "Equipment", priority: "Medium", status: "Upcoming", date: "5/8/25" },
+        { id: 't4', topic: "Working Alone safety protocol audits", submitter: "Shane Moews", category: "Procedures", priority: "High", status: "Upcoming", date: "5/08/25" },
+        { id: 't5', topic: "Asbestos Management during building incursions", submitter: "Shane Moews", category: "Environmental", priority: "Medium", status: "Upcoming", date: "5/8/25" },
+        { id: 't6', topic: "Working at night lighting minimums", submitter: "Shane Moews", category: "Procedures", priority: "Low", status: "Upcoming", date: "5/8/25" },
+        { id: 't7', topic: "Fall Protection Equipment daily visual checks", submitter: "Shane Moews", category: "Equipment", priority: "High", status: "Reviewed", date: "4/20/25", reviewDate: "5/1/25" },
+        { id: 't8', topic: "Tailgate Safety Sync Standards & Records", submitter: "Shane Moews", category: "Procedures", priority: "Medium", status: "Reviewed", date: "4/15/25", reviewDate: "5/1/25" }
+      ];
+      setTopics(defaultTopics);
+      localStorage.setItem('telus_topics', JSON.stringify(defaultTopics));
+    }
+
+    // 3. Initial Minutes Reports Load
+    const storedMinutes = localStorage.getItem('telus_minutes');
+    if (storedMinutes) {
+      setMinutes(JSON.parse(storedMinutes));
+    } else {
+      const defaultMinutes: MeetingMinutes[] = [
+        {
+          id: 'm1',
+          date: 'May 1, 2026',
+          title: 'Spring Hazard Awareness Council',
+          attendees: 12,
+          summary: 'Discussed field hazard safety measures during spring defrosting, mud control procedures, and increased wild canine activity alerts. Finalized bucket deployment checklists during storms.',
+          link: 'https://www.telus.com/en/about/safety',
+          topicsReviewed: ['Spring Hazards', 'Tailgate Standards']
+        },
+        {
+          id: 'm2',
+          date: 'April 15, 2026',
+          title: 'Quarterly Equipment & PPE Council',
+          attendees: 15,
+          summary: 'Full audit of Type-1 ladders safety metrics, safety harness wear margins, and partner safety thresholds. Outlined electrical protective gloves testing schedules for Q2.',
+          link: 'https://www.telus.com/en/about/safety',
+          topicsReviewed: ['Fall Protection', 'PPE Standards']
+        }
+      ];
+      setMinutes(defaultMinutes);
+      localStorage.setItem('telus_minutes', JSON.stringify(defaultMinutes));
+    }
+  }, []);
+
+  // Sync state functions
+  const saveAgenda = (newAgenda: AgendaItem[]) => {
+    setAgenda(newAgenda);
+    localStorage.setItem('telus_agenda', JSON.stringify(newAgenda));
+  };
+
+  const saveTopics = (newTopics: Topic[]) => {
+    setTopics(newTopics);
+    localStorage.setItem('telus_topics', JSON.stringify(newTopics));
+  };
+
+  const saveMinutes = (newMinutes: MeetingMinutes[]) => {
+    setMinutes(newMinutes);
+    localStorage.setItem('telus_minutes', JSON.stringify(newMinutes));
+  };
+
+  // Callback implementations
+  const handleAddAgendaItem = (item: Omit<AgendaItem, 'id'>) => {
+    const newItem: AgendaItem = {
+      id: 'agenda_' + Date.now(),
+      ...item
+    };
+    saveAgenda([...agenda, newItem]);
+  };
+
+  const handleRemoveAgendaItem = (id: string) => {
+    saveAgenda(agenda.filter(item => item.id !== id));
+  };
+
+  const handleSuggestSubmit = (newTopicData: Omit<Topic, 'id' | 'status' | 'date'>) => {
+    const today = new Date();
+    const formattedDate = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear() % 100}`;
+    const newTopic: Topic = {
+      id: 'topic_' + Date.now(),
+      topic: newTopicData.topic,
+      submitter: newTopicData.submitter,
+      description: newTopicData.description,
+      category: newTopicData.category,
+      priority: newTopicData.priority,
+      status: 'Upcoming',
+      date: formattedDate
+    };
+    saveTopics([...topics, newTopic]);
+  };
+
+  const handleAddInlineTopic = (topicData: Omit<Topic, 'id' | 'status' | 'date' | 'reviewDate'>) => {
+    const today = new Date();
+    const formattedDate = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear() % 100}`;
+    const newTopic: Topic = {
+      id: 'topic_' + Date.now(),
+      topic: topicData.topic,
+      submitter: topicData.submitter,
+      category: topicData.category,
+      priority: topicData.priority,
+      status: 'Upcoming',
+      date: formattedDate
+    };
+    saveTopics([...topics, newTopic]);
+  };
+
+  const handlePromoteToAgenda = (topic: Topic) => {
+    // Add to agenda list
+    const newAgendaItem: AgendaItem = {
+      id: 'agenda_' + Date.now(),
+      item: topic.topic,
+      submitter: topic.submitter,
+      notes: topic.description || `Safety Object promoted from the sugestions backlog. Category: ${topic.category}.`
+    };
+    saveAgenda([...agenda, newAgendaItem]);
+
+    // Update topic status
+    const updatedTopics = topics.map(t => {
+      if (t.id === topic.id) {
+        return { ...t, priority: 'High' as const };
+      }
+      return t;
+    });
+    saveTopics(updatedTopics);
+  };
+
+  const handleMarkReviewed = (id: string) => {
+    const today = new Date();
+    const formattedDate = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear() % 100}`;
+    const updatedTopics = topics.map(t => {
+      if (t.id === id) {
+        return {
+          ...t,
+          status: 'Reviewed' as const,
+          reviewDate: formattedDate
+        };
+      }
+      return t;
+    });
+    saveTopics(updatedTopics);
+  };
+
+  const handleDeleteTopic = (id: string) => {
+    saveTopics(topics.filter(t => t.id !== id));
+  };
+
+  const handleAddMinutes = (report: Omit<MeetingMinutes, 'id'>) => {
+    const newReport: MeetingMinutes = {
+      id: 'minutes_' + Date.now(),
+      ...report
+    };
+    saveMinutes([newReport, ...minutes]);
+  };
+
+  const handleDeleteMinutes = (id: string) => {
+    saveMinutes(minutes.filter(m => m.id !== id));
+  };
+
+  const handleSeedQuickSample = () => {
+    const samples: Topic[] = [
+      { id: 'sample1', topic: "High Voltage warning protocols & compliance barriers", submitter: "Shane Moews", category: "Equipment", priority: "Critical", status: "Upcoming", date: "6/4/26" },
+      { id: 'sample2', topic: "Underground cable excavation dig-safe guidelines", submitter: "Sarah Croft", category: "Procedures", priority: "High", status: "Upcoming", date: "6/4/26" }
+    ];
+    saveTopics([...topics, ...samples]);
+  };
+
+  return (
+    <div className="bg-[#f8fafc] min-h-screen text-slate-800 flex flex-col justify-between selection:bg-telus-purple/10 selection:text-telus-purple">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 w-full">
+        
+        {/* Header Block in a Sleek Saas Rounded layout */}
+        <header id="app-header" className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-6 sm:p-8 rounded-2xl border border-slate-100 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)]">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-[#4B286D] flex items-center justify-center text-white text-xl font-bold font-display shadow-sm shadow-[#4B286D]/20">
+              T
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="uppercase tracking-[0.25em] text-[11px] font-extrabold text-slate-405 font-display">
+                  Partner Safety
+                </span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#2B8000] animate-[pulse_1.5s_infinite]"></span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight font-display leading-tight">
+                Interlock Hub
+              </h1>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 border border-slate-100 rounded-xl px-5 py-4 flex items-center gap-4 self-start md:self-auto transition-all hover:bg-white hover:shadow-xs">
+            <div className="bg-[#2B8000] text-white p-2.5 rounded-lg flex-shrink-0 shadow-sm shadow-[#2B8000]/15">
+              <Calendar className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider mb-0.5">
+                Upcoming Council
+              </p>
+              <input
+                id="meeting-date-input"
+                type="text"
+                value={meetingDate}
+                onChange={(e) => setMeetingDate(e.target.value)}
+                className="font-bold text-slate-800 text-lg bg-transparent border-b border-transparent hover:border-slate-350 focus:border-[#4B286D] outline-none tracking-tight w-36 transition-all"
+              />
+            </div>
+          </div>
+        </header>
+
+        {/* Tab Selection Row */}
+        <nav id="navigation-tabs" className="flex gap-1 mb-8 bg-slate-100 p-1.5 rounded-xl inline-flex overflow-x-auto max-w-full border border-slate-200/50">
+          <button
+            id="tab-btn-dashboard"
+            onClick={() => setActiveTab('hub')}
+            className={`py-2 px-5 text-xs font-semibold tracking-wide rounded-lg transition-all duration-200 whitespace-nowrap ${
+              activeTab === 'hub' ? 'bg-[#4B286D] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            DASHBOARD
+          </button>
+          <button
+            id="tab-btn-topics"
+            onClick={() => setActiveTab('topics')}
+            className={`py-2 px-5 text-xs font-semibold tracking-wide rounded-lg transition-all duration-200 whitespace-nowrap ${
+              activeTab === 'topics' ? 'bg-[#4B286D] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            TOPIC TRACKER ({topics.filter(t => t.status === 'Upcoming').length})
+          </button>
+          <button
+            id="tab-btn-minutes"
+            onClick={() => setActiveTab('minutes')}
+            className={`py-2 px-5 text-xs font-semibold tracking-wide rounded-lg transition-all duration-200 whitespace-nowrap ${
+              activeTab === 'minutes' ? 'bg-[#4B286D] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+            }`}
+          >
+            MINUTES ARCHIVE ({minutes.length})
+          </button>
+        </nav>
+
+        {/* Tab Render Area */}
+        <main id="tab-content" className="min-h-[400px]">
+          {activeTab === 'hub' && (
+            <DashboardTab
+              agenda={agenda}
+              onAddAgendaItem={handleAddAgendaItem}
+              onRemoveAgendaItem={handleRemoveAgendaItem}
+              onOpenSuggestModal={() => setIsSuggestModalOpen(true)}
+              topics={topics}
+              isFirebaseActive={false} // Currently local state mode by default
+              onQuickSimulate={handleSeedQuickSample}
+            />
+          )}
+
+          {activeTab === 'topics' && (
+            <TrackerTab
+              topics={topics}
+              onAddInlineTopic={handleAddInlineTopic}
+              onPromoteToAgenda={handlePromoteToAgenda}
+              onMarkReviewed={handleMarkReviewed}
+              onDeleteTopic={handleDeleteTopic}
+            />
+          )}
+
+          {activeTab === 'minutes' && (
+            <MinutesTab
+              minutes={minutes}
+              onAddMinutes={handleAddMinutes}
+              onDeleteMinutes={handleDeleteMinutes}
+            />
+          )}
+        </main>
+      </div>
+
+      {/* Styled Footer */}
+      <footer id="app-footer" className="text-center py-12 mt-16 text-slate-400 text-[10px] uppercase tracking-[0.5em] font-black flex items-center justify-center gap-4 border-t border-slate-200 bg-white">
+        <span className="w-12 h-0.5 bg-slate-200"></span>
+        TELUS HEALTH & SAFETY
+        <span className="w-12 h-0.5 bg-slate-200"></span>
+      </footer>
+
+      {/* Modals */}
+      <TopicForm
+        isOpen={isSuggestModalOpen}
+        onClose={() => setIsSuggestModalOpen(false)}
+        onSubmit={handleSuggestSubmit}
+      />
+    </div>
+  );
+}
